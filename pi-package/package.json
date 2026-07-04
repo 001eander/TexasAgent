@@ -1,0 +1,14 @@
+{
+  "name": "texas-agent",
+  "version": "0.1.0",
+  "description": "Texas Hold'em poker AI tools and strategy for pi coding agent",
+  "keywords": ["pi-package", "poker", "texas-holdem", "gto", "ai-agent"],
+  "pi": {
+    "extensions": ["./extensions"],
+    "skills": ["./skills"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  }
+}
