@@ -7,45 +7,36 @@ LLM-powered Texas Hold'em poker AI agent. Uses [pi coding agent](https://github.
 [![uv](https://img.shields.io/badge/uv-package%20manager-6743ee)](https://docs.astral.sh/uv/)
 [![just](https://img.shields.io/badge/just-command%20runner-8b8b00)](https://github.com/casey/just)
 
+> [中文](README.zh-CN.md)
+
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Web Browser                           │
-│              🃏 Poker Table · Cards · Chips              │
-└──────────────────────┬──────────────────────────────────┘
-                       │ WebSocket
-┌──────────────────────┴──────────────────────────────────┐
-│                  FastAPI (Python)                        │
-│                                                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │ Poker Engine  │  │  Tool Layer   │  │  pi RPC       │  │
-│  │              │  │              │  │  Client       │  │
-│  │ · Dealing    │  │ · Equity     │  │              │  │
-│  │ · Betting    │  │ · Pot odds   │  │  stdin/stdout │  │
-│  │ · Showdown   │  │ · Hand rank  │  │      │        │  │
-│  └──────────────┘  └──────────────┘  └──────┼────────┘  │
-└──────────────────────────────────────────────┼──────────┘
-                                               │
-┌──────────────────────────────────────────────┴──────────┐
-│                  pi RPC (Node.js)                        │
-│                                                          │
-│  ┌────────────────────────────────────────────────────┐ │
-│  │              LLM Agent (Claude / GPT)               │ │
-│  │                                                     │ │
-│  │  1. Receives game state as natural language prompt  │ │
-│  │  2. Calls poker tools via function calling:         │ │
-│  │     · poker_equity — Monte Carlo win probability    │ │
-│  │     · poker_pot_odds — required equity to call      │ │
-│  │     · poker_hand_strength — made hand evaluation    │ │
-│  │     · poker_opponent_stats — VPIP/PFR/AF tracking   │ │
-│  │     · poker_range_analysis — range vs board analysis│ │
-│  │     · poker_solve — GTO solver bridge               │ │
-│  │  3. Returns structured action: FOLD/CALL/RAISE      │ │
-│  └────────────────────────────────────────────────────┘ │
-│                                                          │
-│  Extensions: poker-tools.ts    Skills: poker-strategy    │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Browser["🖥 Browser"]
+        UI["🃏 Poker Table UI"]
+    end
+
+    subgraph FastAPI["FastAPI (Python)"]
+        Engine["Poker Engine<br/>Dealing · Betting · Showdown"]
+        Tools["Tool Layer<br/>Equity · Pot Odds · Hand Rank"]
+        RPCClient["pi RPC Client<br/>stdin/stdout"]
+    end
+
+    subgraph PiRPC["pi RPC (Node.js)"]
+        LLM["LLM Agent (Claude / GPT)"]
+        ToolCalls["Function Calling"]
+        Ext["Extensions: poker-tools.ts"]
+        Skill["Skills: poker-strategy"]
+    end
+
+    UI <-->|"WebSocket"| FastAPI
+    Engine --> Tools
+    RPCClient <-->|"JSON-RPC"| LLM
+    LLM --> ToolCalls
+    ToolCalls -->|"poker_equity / poker_pot_odds / ..."| Tools
+    Ext --> LLM
+    Skill --> LLM
 ```
 
 The LLM acts as the "brain" — strategizing, reading opponents, and deciding when to bluff. The tools provide precise mathematical backing (equity, pot odds, GTO frequencies). pi provides the agent infrastructure: tool registration, turn management, conversation history, and RPC communication.
