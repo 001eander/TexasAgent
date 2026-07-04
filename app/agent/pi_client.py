@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PiRpcConfig:
     pi_path: str = "pi"
-    model: str = "anthropic/claude-sonnet-4-20250514"
+    model: str = "deepseek/deepseek-v4-pro"
     extension_path: str | None = None  # path to poker-tools.ts
     thinking_level: str = "medium"
     no_session: bool = True
