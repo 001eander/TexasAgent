@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Project
+data/poker.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# pi
+.pi/

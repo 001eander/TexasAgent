@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Table {{ table_id }} — TexasAgent</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a2a0a;
+      color: #ddd;
+      min-height: 100vh;
+    }
+    .table-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+    .table-header {
+      text-align: center;
+      padding: 0.5rem;
+      color: #ffd700;
+      font-size: 0.9rem;
+    }
+
+    /* Felt */
+    .felt {
+      position: relative;
+      background: radial-gradient(ellipse at center, #1a5c1a 0%, #0d3d0d 50%, #072207 100%);
+      border-radius: 200px;
+      min-height: 400px;
+      padding: 2rem;
+      border: 8px solid #3a2a1a;
+      box-shadow: 0 0 40px rgba(0,0,0,0.5), inset 0 0 60px rgba(0,0,0,0.3);
+    }
+
+    /* Community cards */
+    .community-cards {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin: 1rem 0;
+      min-height: 70px;
+    }
+
+    /* Card */
+    .card {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 68px;
+      background: white;
+      color: #111;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+      border: 1px solid #ccc;
+    }
+    .card.red { color: #d32f2f; }
+    .card.back {
+      background: linear-gradient(135deg, #1a237e, #283593);
+      color: #5c6bc0;
+      font-size: 1.2rem;
+    }
+
+    /* Player seats */
+    .seats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    .seat {
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+      padding: 0.75rem;
+      text-align: center;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+    .seat.active {
+      border-color: #ffd700;
+      box-shadow: 0 0 15px rgba(255,215,0,0.3);
+    }
+    .seat.folded { opacity: 0.5; }
+    .seat .name { font-weight: bold; color: #ffd700; }
+    .seat .stack { color: #aaa; font-size: 0.85rem; }
+    .seat .bet { color: #4caf50; font-size: 0.85rem; }
+    .seat .cards { display: flex; justify-content: center; gap: 3px; margin-top: 4px; }
+    .seat .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #333;
+      color: #aaa;
+      margin: 2px;
+    }
+    .seat .badge.agent { background: #1a237e; color: #64b5f6; }
+    .seat .badge.human { background: #1b5e20; color: #81c784; }
+
+    /* Pot */
+    .pot-area {
+      text-align: center;
+      margin: 1rem 0;
+    }
+    .pot-area .pot {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #ffd700;
+    }
+    .pot-area .street {
+      font-size: 0.85rem;
+      color: #aaa;
+      text-transform: uppercase;
+    }
+
+    /* Actions */
+    .actions {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .actions button {
+      padding: 0.6rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .actions button:hover { transform: translateY(-1px); }
+    .actions button:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+    .btn-fold { background: #b71c1c; color: white; }
+    .btn-check, .btn-call { background: #1565c0; color: white; }
+    .btn-raise { background: #e65100; color: white; }
+    .btn-allin { background: #6a1b9a; color: white; }
+
+    .raise-input {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .raise-input input {
+      width: 80px;
+      padding: 0.5rem;
+      border: 1px solid #555;
+      border-radius: 6px;
+      background: #1a3a1a;
+      color: #ddd;
+      font-size: 1rem;
+    }
+
+    /* Status */
+    .status-bar {
+      text-align: center;
+      padding: 0.5rem;
+      color: #888;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="table-container">
+    <div class="table-header">TexasAgent — Table <strong>{{ table_id }}</strong></div>
+
+    <div class="felt">
+      <div class="seats" id="seats">
+        <div class="seat"><div class="name">Loading...</div></div>
+      </div>
+
+      <div class="community-cards" id="community">
+        <div class="card back">?</div>
+      </div>
+
+      <div class="pot-area">
+        <div class="street" id="street">PREFLOP</div>
+        <div class="pot" id="pot">Pot: 0</div>
+      </div>
+    </div>
+
+    <div class="actions" id="actions">
+      <button class="btn-fold" onclick="act('fold')">Fold</button>
+      <button class="btn-check" onclick="act('check')">Check</button>
+      <button class="btn-call" onclick="act('call')">Call</button>
+      <button class="btn-allin" onclick="act('all_in')">All-in</button>
+      <div class="raise-input">
+        <input id="raise_amount" type="number" placeholder="Amount" min="1">
+        <button class="btn-raise" onclick="raiseAmount()">Raise</button>
+      </div>
+    </div>
+
+    <div class="status-bar" id="status"></div>
+  </div>
+
+  <script>
+    const tableId = "{{ table_id }}";
+    const ws = new WebSocket(`ws://${location.host}/ws/${tableId}`);
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'game_state') {
+        render(msg.data);
+      } else if (msg.type === 'error') {
+        document.getElementById('status').textContent = 'Error: ' + msg.message;
+      }
+    };
+
+    ws.onclose = () => {
+      document.getElementById('status').textContent = 'Connection lost. Refresh to reconnect.';
+    };
+
+    function render(data) {
+      // Street
+      document.getElementById('street').textContent = data.street.toUpperCase();
+      document.getElementById('pot').textContent = `Pot: ${data.pot}`;
+
+      // Community cards
+      const cc = document.getElementById('community');
+      cc.innerHTML = data.community_cards.map(c =>
+        `<div class="card ${['h','d'].includes(c[1]) ? 'red' : ''}">${c}</div>`
+      ).join('') || '<div class="card back">?</div>';
+
+      // Seats
+      const seatsDiv = document.getElementById('seats');
+      seatsDiv.innerHTML = data.players.map((p, i) => {
+        const isActive = i === data.acting_player_index && !p.folded && !p.is_all_in;
+        const holeCards = p.hole_cards.map(c => {
+          if (c === '??' || c === '?') {
+            return `<div class="card back">?</div>`;
+          }
+          return `<div class="card ${['h','d'].includes(c[1]) ? 'red' : ''}">${c}</div>`;
+        }).join('');
+
+        return `
+          <div class="seat ${isActive ? 'active' : ''} ${p.folded ? 'folded' : ''}">
+            <div class="name">
+              ${p.name} ${p.position ? '(' + p.position + ')' : ''}
+              ${p.is_agent ? '<span class="badge agent">AI</span>' : ''}
+              ${p.is_human ? '<span class="badge human">YOU</span>' : ''}
+            </div>
+            <div class="stack">Stack: ${p.stack}</div>
+            ${p.current_bet > 0 ? `<div class="bet">Bet: ${p.current_bet}</div>` : ''}
+            <div class="cards">${holeCards}</div>
+            ${p.folded ? '<div style="color:#e53935;font-weight:bold">FOLDED</div>' : ''}
+            ${p.is_all_in ? '<div style="color:#ffd700;font-weight:bold">ALL IN</div>' : ''}
+          </div>
+        `;
+      }).join('');
+
+      // Update status
+      const hero = data.players.find(p => p.is_human);
+      const actor = data.players[data.acting_player_index];
+      if (actor?.is_human) {
+        document.getElementById('status').textContent = 'Your turn! Choose an action.';
+        document.querySelectorAll('#actions button').forEach(b => b.disabled = false);
+      } else {
+        document.getElementById('status').textContent = `Waiting for ${actor?.name || 'agent'}...`;
+        document.querySelectorAll('#actions button').forEach(b => b.disabled = true);
+      }
+    }
+
+    function act(type) {
+      ws.send(JSON.stringify({ type: 'action', action_type: type }));
+    }
+
+    function raiseAmount() {
+      const amount = parseInt(document.getElementById('raise_amount').value);
+      if (amount > 0) {
+        ws.send(JSON.stringify({ type: 'action', action_type: 'raise', amount }));
+      }
+    }
+  </script>
+</body>
+</html>

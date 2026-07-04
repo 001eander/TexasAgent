@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TexasAgent</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a2a0a;
+      color: #ddd;
+      min-height: 100vh;
+    }
+    .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+    h1 { text-align: center; color: #4caf50; margin-bottom: 2rem; font-size: 2.5rem; }
+    h1 span { color: #ffd700; }
+
+    .setup-form {
+      background: #1a3a1a;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .setup-form label {
+      display: block;
+      margin: 1rem 0 0.25rem;
+      font-weight: bold;
+      color: #aaa;
+    }
+    .setup-form input, .setup-form select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #0a2a0a;
+      color: #ddd;
+      font-size: 1rem;
+    }
+    .setup-form button {
+      width: 100%;
+      margin-top: 1.5rem;
+      padding: 0.75rem;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .setup-form button:hover { background: #45a049; }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 3rem;
+    }
+    .feature-card {
+      background: #1a3a1a;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .feature-card h3 { color: #ffd700; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🃏 <span>Texas</span>Agent</h1>
+
+    <div class="setup-form">
+      <h2 style="margin-bottom:1rem;color:#ffd700">New Game</h2>
+
+      <label>Number of Players</label>
+      <select id="num_players">
+        <option value="2">2 (Heads-Up)</option>
+        <option value="3">3</option>
+        <option value="6" selected>6 (Full Ring)</option>
+        <option value="9">9 (Full Table)</option>
+      </select>
+
+      <label>Human Seats (comma-separated, 0-indexed)</label>
+      <input id="human_indices" value="0" placeholder="0">
+
+      <label>Starting Stack</label>
+      <input id="starting_stack" value="1000" type="number">
+
+      <button onclick="createGame()">Start Game 🎲</button>
+    </div>
+
+    <div class="features">
+      <div class="feature-card">
+        <h3>🤖 LLM Agent</h3>
+        <p>pi-powered AI opponents with GTO reasoning</p>
+      </div>
+      <div class="feature-card">
+        <h3>📊 Equity Calculator</h3>
+        <p>Real-time Monte Carlo hand analysis</p>
+      </div>
+      <div class="feature-card">
+        <h3>🎯 GTO Solver</h3>
+        <p>Nash equilibrium strategy computation</p>
+      </div>
+      <div class="feature-card">
+        <h3>📈 Opponent Tracking</h3>
+        <p>VPIP, PFR, aggression factor stats</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function createGame() {
+      const numPlayers = document.getElementById('num_players').value;
+      const humanIndices = document.getElementById('human_indices').value;
+      const startingStack = document.getElementById('starting_stack').value;
+
+      const resp = await fetch('/api/table/create?' + new URLSearchParams({
+        num_players: numPlayers,
+        human_indices: humanIndices,
+        agent_indices: [...Array(parseInt(numPlayers)).keys()]
+          .filter(i => !humanIndices.split(',').map(Number).includes(i))
+          .join(','),
+        starting_stack: startingStack,
+      }), { method: 'POST' });
+
+      const data = await resp.json();
+      window.location.href = '/table/' + data.table_id;
+    }
+  </script>
+</body>
+</html>
