@@ -1,0 +1,25 @@
+# Lefthook configuration for TexasAgent
+# https://github.com/evilmartians/lefthook
+
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      glob: "*.py"
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+    lint:
+      glob: "*.py"
+      run: uv run ruff check --fix {staged_files}
+      stage_fixed: true
+    typecheck:
+      glob: "*.py"
+      run: uv run mypy app/
+
+pre-push:
+  parallel: true
+  commands:
+    test:
+      run: uv run pytest
+    lint-all:
+      run: uv run ruff check app/ tests/
