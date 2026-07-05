@@ -285,7 +285,7 @@ export default function (pi: ExtensionAPI) {
         content: [
           {
             type: "text",
-            [
+            text: [
               `**Range:** ${desc}`,
               `**Board:** ${board}`,
               ``,
@@ -341,7 +341,7 @@ export default function (pi: ExtensionAPI) {
         content: [
           {
             type: "text",
-            [
+            text: [
               "**GTO Solver:** Not configured.",
               "",
               "To enable GTO solving:",

@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app.agent.pi_client import PiRpcClient, PiRpcConfig
 from app.engine.game import (
     apply_action,
     create_game,
@@ -26,6 +27,18 @@ logger = logging.getLogger(__name__)
 # ── In-memory store (replace with SQLite later) ────────────
 tables: dict[str, GameState] = {}
 connections: dict[str, list[WebSocket]] = {}
+
+# ── pi RPC client ──────────────────────────────────────────
+_pi_client: PiRpcClient | None = None
+
+
+def _get_pi_extension_path() -> str:
+    import os
+
+    return os.path.join(
+        os.path.dirname(__file__), "..", "pi-package", "extensions", "poker-tools.ts"
+    )
+
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -86,8 +99,27 @@ async def broadcast(table_id: str, player_index: int | None = None) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _pi_client
     logger.info("TexasAgent starting...")
+
+    # Try to start pi RPC
+    config = PiRpcConfig(
+        extension_path=_get_pi_extension_path(),
+    )
+    _pi_client = PiRpcClient(config)
+    try:
+        await _pi_client.start()
+        logger.info("pi RPC connected — AI agents will use LLM")
+    except Exception as e:
+        logger.warning(
+            f"pi RPC unavailable ({e}) — AI agents will use heuristic fallback"
+        )
+        _pi_client = None
+
     yield
+
+    if _pi_client:
+        await _pi_client.stop()
     logger.info("TexasAgent shutting down...")
 
 
@@ -265,20 +297,37 @@ async def _run_agent_actions(table_id: str) -> None:
             await broadcast(table_id)
             continue
 
-        # Agent decision (pi integration placeholder)
-        # _format_prompt(state, pi) — will be used when pi RPC is connected
-        to_call = state.current_bet - player.current_bet
-        if to_call == 0:
-            action = Action(pi, ActionType.CHECK)
-        elif to_call <= player.stack * 0.05:
-            action = Action(pi, ActionType.CALL, amount=to_call)
-        else:
-            import random
+        # Agent decision — use pi RPC if available, else heuristic fallback
+        if _pi_client and _pi_client.is_running:
+            prompt = _format_prompt(state, pi)
+            logger.info(f"Asking pi for {player.name}'s decision...")
+            decision = await _pi_client.decide(prompt)
 
-            if random.random() < 0.5:
-                action = Action(pi, ActionType.CALL, amount=to_call)
+            if decision.action:
+                # Validate and apply
+                legal = legal_actions(state)
+                legal_set = {(a.action_type, a.amount) for a in legal}
+                raw = decision.action
+
+                # Map CALL with 0 amount to CHECK if check is legal
+                if raw.action_type == ActionType.CALL and raw.amount == 0:
+                    raw = Action(pi, ActionType.CHECK, 0)
+
+                if (raw.action_type, raw.amount) in legal_set:
+                    action = Action(pi, raw.action_type, raw.amount)
+                    logger.info(
+                        f"pi decision: {action.action_type.value} {action.amount} — {decision.reasoning[:100]}"
+                    )
+                else:
+                    logger.warning(
+                        f"pi returned illegal action {raw.action_type.value} {raw.amount}, falling back"
+                    )
+                    action = _heuristic_action(state, pi)
             else:
-                action = Action(pi, ActionType.FOLD)
+                logger.warning("pi returned no action, falling back")
+                action = _heuristic_action(state, pi)
+        else:
+            action = _heuristic_action(state, pi)
 
         state = apply_action(state, action)
         tables[table_id] = state
@@ -286,6 +335,21 @@ async def _run_agent_actions(table_id: str) -> None:
 
 
 # ── WebSocket ───────────────────────────────────────────────
+
+
+def _heuristic_action(state: GameState, pi: int) -> Action:
+    """Simple fallback when pi RPC is not available."""
+    player = state.players[pi]
+    to_call = state.current_bet - player.current_bet
+    if to_call == 0:
+        return Action(pi, ActionType.CHECK)
+    if to_call <= max(player.stack * 0.05, player.stack):
+        return Action(pi, ActionType.CALL, amount=min(to_call, player.stack))
+    import random
+
+    if random.random() < 0.5:
+        return Action(pi, ActionType.CALL, amount=min(to_call, player.stack))
+    return Action(pi, ActionType.FOLD)
 
 
 @app.websocket("/ws/{table_id}")
